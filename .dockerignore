@@ -1,0 +1,13 @@
+.pytest_cache
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.log
+data
+frontend
+ytdupe.egg-info
+.git
+.gitignore

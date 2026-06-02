@@ -1,0 +1,17 @@
+services:
+  backend:
+    build: .
+    image: ytdupe-backend:local
+    ports:
+      - "8001:8001"
+    environment:
+      PORT: "8001"
+      YTDUPE_DATA_DIR: /app/data
+      YTDUPE_DB: /app/data/ytdupe.db
+      YTDUPE_CORS_ORIGINS: http://localhost:3001
+    volumes:
+      - ytdupe-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  ytdupe-data:

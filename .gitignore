@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Env
+.env
+*.env
+!*.env.example
+
+# Logs
+*.log
+
+# Generated data / cache / DB
+ytdupe.db
+*.sqlite3
+data/subtitles/
+data/output/
+data/[0-9a-f]*/
+
+# Claude local
+.claude/settings.local.json
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.swp
