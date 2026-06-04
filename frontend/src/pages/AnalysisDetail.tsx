@@ -267,7 +267,9 @@ export function AnalysisDetail() {
                                 {v.status === "PRIMARY" ? "Primary" : "Duplicate"}
                               </Badge>
                             </td>
-                            <td className="px-4 py-2.5 font-mono text-[11px] text-[var(--text-secondary)]">{v.video_id}</td>
+                            <td className="px-4 py-2.5 font-mono text-[11px]">
+                              <a href={`https://www.youtube.com/watch?v=${v.video_id}`} target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] underline decoration-[var(--primary)]/30 hover:decoration-[var(--primary)]">{v.video_id}</a>
+                            </td>
                             <td className="max-w-[260px] truncate px-4 py-2.5 font-bold">{v.judul !== "N/A" ? v.judul : <span className="italic text-[var(--text-secondary)]">-</span>}</td>
                             <td className="px-4 py-2.5 text-right tabular-nums">
                               {v.penayangan > 0 ? v.penayangan.toLocaleString("id-ID") : <span className="text-[var(--text-secondary)]">-</span>}
@@ -298,7 +300,9 @@ export function AnalysisDetail() {
                   <tbody>
                     {transcripts.map((t) => (
                       <tr key={t.video_id} className="border-b border-[var(--border)] transition-colors">
-                        <td className="px-5 py-2.5 font-mono text-[11px] font-bold">{t.video_id}</td>
+                        <td className="px-5 py-2.5 font-mono text-[11px] font-bold">
+                          <a href={`https://www.youtube.com/watch?v=${t.video_id}`} target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] underline decoration-[var(--primary)]/30 hover:decoration-[var(--primary)]">{t.video_id}</a>
+                        </td>
                         <td className="max-w-[520px] px-4 py-2.5 text-xs leading-relaxed text-[var(--text-secondary)]">{t.preview}</td>
                       </tr>
                     ))}
