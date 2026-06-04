@@ -6,3 +6,5 @@ use_stemming: false
 exclude_series: true
 output_file: "data/output/laporan_duplikat_konten.xlsx"
 subtitle_dir: "data/subtitles"
+audio_fallback: true
+whisper_model: "small"

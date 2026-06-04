@@ -11,6 +11,8 @@ class AnalysisCreate(BaseModel):
     threshold: float = 0.75
     use_stemming: bool = False
     exclude_series: bool = True
+    audio_fallback: bool = True
+    whisper_model: str = "small"
 
 
 class AnalysisResponse(BaseModel):

@@ -40,6 +40,8 @@ def create_analysis(payload: AnalysisCreate, db: Session = Depends(get_db)):
         threshold=payload.threshold,
         use_stemming=int(payload.use_stemming),
         exclude_series=int(payload.exclude_series),
+        audio_fallback=int(payload.audio_fallback),
+        whisper_model=payload.whisper_model,
         status="running",
         progress=0,
         progress_message="Memulai...",
@@ -55,6 +57,8 @@ def create_analysis(payload: AnalysisCreate, db: Session = Depends(get_db)):
         threshold=payload.threshold,
         use_stemming=payload.use_stemming,
         exclude_series=payload.exclude_series,
+        audio_fallback=payload.audio_fallback,
+        whisper_model=payload.whisper_model,
     )
 
     return _to_response(analysis)

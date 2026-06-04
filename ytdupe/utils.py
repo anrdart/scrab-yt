@@ -14,6 +14,8 @@ DEFAULT_CONFIG = {
     "exclude_series": True,
     "output_file": "data/output/laporan_duplikat_konten.xlsx",
     "subtitle_dir": "data/subtitles",
+    "audio_fallback": True,
+    "whisper_model": "small",
 }
 
 

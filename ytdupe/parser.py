@@ -90,12 +90,23 @@ def parse_srt(filepath: str) -> str:
     return " ".join(clean_lines)
 
 
+def parse_txt(filepath: str) -> str:
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    except (OSError, UnicodeDecodeError) as e:
+        logger.warning("Gagal membaca file %s: %s", filepath, e)
+        return ""
+
+
 def parse_subtitle(filepath: str) -> str:
     ext = os.path.splitext(filepath)[1].lower()
     if ext == ".vtt":
         return parse_vtt(filepath)
     elif ext == ".srt":
         return parse_srt(filepath)
+    elif ext == ".txt":
+        return parse_txt(filepath)
     else:
         logger.warning("Format tidak didukung: %s", filepath)
         return ""
@@ -111,7 +122,7 @@ def parse_all_subtitles(subtitle_dir: str) -> dict[str, str]:
     files = sorted(
         f
         for f in os.listdir(subtitle_dir)
-        if f.endswith((".vtt", ".srt"))
+        if f.endswith((".vtt", ".srt", ".txt"))
     )
 
     for filename in files:

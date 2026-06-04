@@ -41,6 +41,9 @@ class Analysis(Base):
     clusters_json = Column(Text, default="[]")
     transcripts_json = Column(Text, default="{}")
     video_ids_json = Column(Text, default="[]")
+    audio_fallback = Column(Integer, default=1)
+    whisper_model = Column(String, default="small")
+    audio_transcribed_count = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
     finished_at = Column(DateTime, nullable=True)
 

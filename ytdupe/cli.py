@@ -1,3 +1,4 @@
+import os
 import sys
 
 import click
@@ -12,14 +13,20 @@ def cli():
 
 @cli.command()
 @click.option("--channel", required=True, help="URL channel YouTube")
+@click.option("--audio-fallback/--no-audio-fallback", default=None, help="Transkripsi audio untuk video tanpa subtitle")
+@click.option("--whisper-model", type=click.Choice(["tiny", "base", "small"]), default=None, help="Ukuran model Whisper")
 @click.option("--config", "config_path", default="config.yaml", help="Path file konfigurasi")
-def download(channel, config_path):
+def download(channel, audio_fallback, whisper_model, config_path):
     channel = channel.strip()
     if not channel:
         raise click.BadParameter("URL channel wajib diisi", param_hint="--channel")
 
     config = load_config(config_path)
     config["channel_url"] = channel
+    if audio_fallback is not None:
+        config["audio_fallback"] = audio_fallback
+    if whisper_model is not None:
+        config["whisper_model"] = whisper_model
     logger = setup_logging()
     ensure_dirs(config)
 
@@ -33,12 +40,26 @@ def download(channel, config_path):
         sleep_interval=config["sleep_interval"],
     )
 
-    click.echo(f"\nSelesai!")
+    click.echo(f"\nSubtitle selesai!")
     click.echo(f"  Berhasil: {len(result['success'])} video")
     click.echo(f"  Gagal: {len(result['failed'])} video")
 
-    if result["failed"]:
-        click.echo("\nVideo gagal:")
+    if config["audio_fallback"] and result["failed"]:
+        failed_ids = [vid_id for vid_id, _ in result["failed"]]
+        click.echo(f"\nTahap audio fallback: {len(failed_ids)} video...")
+
+        from ytdupe.transcriber import transcribe_videos
+
+        audio_results = transcribe_videos(
+            video_ids=failed_ids,
+            output_dir=config["subtitle_dir"],
+            audio_tmp_dir=os.path.join(config["subtitle_dir"], "..", "audio_tmp"),
+            model_size=config["whisper_model"],
+            language=config["languages"][0] if config["languages"] else "id",
+        )
+        click.echo(f"  Audio berhasil: {len(audio_results)} video")
+    elif result["failed"]:
+        click.echo("\nVideo gagal (tanpa audio fallback):")
         for vid, err in result["failed"][:10]:
             click.echo(f"  {vid}: {err}")
         if len(result["failed"]) > 10:
@@ -124,14 +145,20 @@ def analyze(threshold, metadata, config_path):
 @click.option("--channel", required=True, help="URL channel YouTube")
 @click.option("--threshold", default=None, type=click.FloatRange(0, 1), help="Similarity threshold (0-1)")
 @click.option("--metadata", default=None, help="Path file CSV metadata YouTube Studio")
+@click.option("--audio-fallback/--no-audio-fallback", default=None, help="Transkripsi audio untuk video tanpa subtitle")
+@click.option("--whisper-model", type=click.Choice(["tiny", "base", "small"]), default=None, help="Ukuran model Whisper")
 @click.option("--config", "config_path", default="config.yaml", help="Path file konfigurasi")
-def run_all(channel, threshold, metadata, config_path):
+def run_all(channel, threshold, metadata, audio_fallback, whisper_model, config_path):
     channel = channel.strip()
     if not channel:
         raise click.BadParameter("URL channel wajib diisi", param_hint="--channel")
 
     config = load_config(config_path)
     config["channel_url"] = channel
+    if audio_fallback is not None:
+        config["audio_fallback"] = audio_fallback
+    if whisper_model is not None:
+        config["whisper_model"] = whisper_model
     logger = setup_logging()
     ensure_dirs(config)
 
@@ -159,6 +186,21 @@ def run_all(channel, threshold, metadata, config_path):
         sleep_interval=config["sleep_interval"],
     )
     click.echo(f"  Berhasil: {len(result['success'])}, Gagal: {len(result['failed'])}")
+
+    if config["audio_fallback"] and result["failed"]:
+        failed_ids = [vid_id for vid_id, _ in result["failed"]]
+        click.echo(f"\nTahap 1b: Transkripsi audio ({len(failed_ids)} video)...")
+
+        from ytdupe.transcriber import transcribe_videos
+
+        audio_results = transcribe_videos(
+            video_ids=failed_ids,
+            output_dir=config["subtitle_dir"],
+            audio_tmp_dir=os.path.join(config["subtitle_dir"], "..", "audio_tmp"),
+            model_size=config["whisper_model"],
+            language=config["languages"][0] if config["languages"] else "id",
+        )
+        click.echo(f"  Audio berhasil: {len(audio_results)} video")
 
     click.echo("\nTahap 2: Analisis duplikat...")
     transcripts = parse_all_subtitles(config["subtitle_dir"])

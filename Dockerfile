@@ -12,6 +12,8 @@ COPY backend/requirements.txt ./backend-requirements.txt
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt -r backend-requirements.txt
 
+RUN python -c "from faster_whisper import WhisperModel; WhisperModel('small', device='cpu', compute_type='int8')"
+
 COPY backend ./backend
 COPY ytdupe ./ytdupe
 

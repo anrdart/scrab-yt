@@ -12,17 +12,17 @@ logger = logging.getLogger("ytdupe.worker")
 _active_jobs: dict[str, threading.Thread] = {}
 
 
-def run_analysis(job_id: str, channel_url: str, threshold: float, use_stemming: bool, exclude_series: bool, metadata_csv: str = ""):
+def run_analysis(job_id: str, channel_url: str, threshold: float, use_stemming: bool, exclude_series: bool, metadata_csv: str = "", audio_fallback: bool = True, whisper_model: str = "small"):
     t = threading.Thread(
         target=_worker,
-        args=(job_id, channel_url, threshold, use_stemming, exclude_series, metadata_csv),
+        args=(job_id, channel_url, threshold, use_stemming, exclude_series, metadata_csv, audio_fallback, whisper_model),
         daemon=True,
     )
     _active_jobs[job_id] = t
     t.start()
 
 
-def _worker(job_id: str, channel_url: str, threshold: float, use_stemming: bool, exclude_series: bool, metadata_csv: str):
+def _worker(job_id: str, channel_url: str, threshold: float, use_stemming: bool, exclude_series: bool, metadata_csv: str, audio_fallback: bool = True, whisper_model: str = "small"):
     db = SessionLocal()
     short_id = job_id[:8]
     try:
@@ -35,7 +35,7 @@ def _worker(job_id: str, channel_url: str, threshold: float, use_stemming: bool,
         _last_log_pct = [0]
 
         def on_download_progress(current: int, total: int, video_id: str):
-            pct = 5 + round((current / total) * 25)
+            pct = 5 + round((current / total) * 20)
             _set_progress(db, job_id, pct, f"Download subtitle {current}/{total}")
             if pct - _last_log_pct[0] >= 5 or current == total:
                 _last_log_pct[0] = pct
@@ -53,22 +53,54 @@ def _worker(job_id: str, channel_url: str, threshold: float, use_stemming: bool,
         success_count = len(result["success"])
         fail_count = len(result["failed"])
 
-        logger.info("⬇ [%s]  30%%  download done — %d ok, %d fail", short_id, success_count, fail_count)
-        _set_progress(db, job_id, 30, f"Download selesai: {success_count} berhasil, {fail_count} gagal")
+        logger.info("⬇ [%s]  25%%  subtitle done — %d ok, %d fail", short_id, success_count, fail_count)
+        _set_progress(db, job_id, 25, f"Subtitle selesai: {success_count} berhasil, {fail_count} gagal")
 
-        _set_progress(db, job_id, 40, "Parsing subtitle...")
+        failed_ids = [vid_id for vid_id, _reason in result["failed"]]
+        audio_count = 0
+
+        if audio_fallback and failed_ids:
+            import shutil
+            from ytdupe.transcriber import transcribe_videos
+
+            audio_tmp_dir = os.path.join(os.path.dirname(subtitle_dir), "audio_tmp")
+            logger.info("🎤 [%s]  26%%  starting audio transcription for %d videos (model=%s)",
+                        short_id, len(failed_ids), whisper_model)
+
+            def on_transcribe_progress(current: int, total: int, video_id: str):
+                pct = 26 + round((current / total) * 24)
+                _set_progress(db, job_id, pct, f"Transkripsi audio {current}/{total} — {video_id}")
+
+            audio_results = transcribe_videos(
+                video_ids=failed_ids,
+                output_dir=subtitle_dir,
+                audio_tmp_dir=audio_tmp_dir,
+                model_size=whisper_model,
+                language="id",
+                on_progress=on_transcribe_progress,
+            )
+            audio_count = len(audio_results)
+            shutil.rmtree(audio_tmp_dir, ignore_errors=True)
+
+            logger.info("🎤 [%s]  50%%  audio transcription done — %d/%d successful",
+                        short_id, audio_count, len(failed_ids))
+            update_analysis(db, job_id, audio_transcribed_count=audio_count)
+
+        _set_progress(db, job_id, 50, f"Subtitle: {success_count}, Audio: {audio_count}")
+
+        _set_progress(db, job_id, 55, "Parsing transkrip...")
         from ytdupe.parser import parse_all_subtitles
 
         transcripts = parse_all_subtitles(subtitle_dir)
 
         if not transcripts:
-            _set_status(db, job_id, "failed", "Tidak ada subtitle ditemukan")
-            logger.error("✖ [%s]  40%%  0 transcripts parsed — no subtitles available", short_id)
+            _set_status(db, job_id, "failed", "Tidak ada transkrip ditemukan")
+            logger.error("✖ [%s]  55%%  0 transcripts parsed", short_id)
             return
 
-        logger.info("✓ [%s]  40%%  parsed %d transcripts", short_id, len(transcripts))
+        logger.info("✓ [%s]  55%%  parsed %d transcripts", short_id, len(transcripts))
 
-        _set_progress(db, job_id, 50, f"Preprocessing {len(transcripts)} transkrip...")
+        _set_progress(db, job_id, 60, f"Preprocessing {len(transcripts)} transkrip...")
         normalized = _normalize_or_fail(transcripts, use_stemming)
         if normalized is None:
             _set_status(db, job_id, "failed", "Semua transkrip kosong setelah preprocessing")
