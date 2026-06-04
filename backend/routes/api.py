@@ -18,7 +18,7 @@ from backend.models import (
     get_output_dir,
     get_subtitle_dir,
 )
-from backend.tasks import recompute_completed_analysis, run_analysis
+from backend.tasks import cancel_analysis, recompute_completed_analysis, run_analysis
 from backend.database import Analysis
 
 router = APIRouter()
@@ -167,13 +167,24 @@ def upload_metadata(analysis_id: str, file: UploadFile = File(...), db: Session 
     return {"message": "Metadata CSV berhasil diupload dan laporan diperbarui", "path": csv_path}
 
 
+@router.post("/analyses/{analysis_id}/cancel")
+def cancel_analysis_endpoint(analysis_id: str, db: Session = Depends(get_db)):
+    analysis = db.query(Analysis).filter(Analysis.id == analysis_id).first()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Analisis tidak ditemukan")
+    if analysis.status != "running":
+        raise HTTPException(status_code=409, detail="Analisis tidak sedang berjalan")
+    cancel_analysis(analysis_id)
+    return {"message": "Analisis sedang dibatalkan"}
+
+
 @router.delete("/analyses/{analysis_id}")
 def delete_analysis(analysis_id: str, db: Session = Depends(get_db)):
     analysis = db.query(Analysis).filter(Analysis.id == analysis_id).first()
     if not analysis:
         raise HTTPException(status_code=404, detail="Analisis tidak ditemukan")
     if analysis.status == "running":
-        raise HTTPException(status_code=409, detail="Analisis masih berjalan")
+        raise HTTPException(status_code=409, detail="Analisis masih berjalan, batalkan terlebih dahulu")
 
     db.delete(analysis)
     db.commit()

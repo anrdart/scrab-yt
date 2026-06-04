@@ -26,6 +26,7 @@ def download_subtitles(
         "quiet": True,
         "no_warnings": True,
         "extract_flat": True,
+        "playlistend": -1,
         "logger": logging.getLogger("ytdupe.dlp"),
     }
 

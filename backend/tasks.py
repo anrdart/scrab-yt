@@ -9,22 +9,43 @@ from backend.models import get_output_dir, get_subtitle_dir
 
 logger = logging.getLogger("ytdupe.worker")
 
+
+class _CancelledError(Exception):
+    pass
+
+
 _active_jobs: dict[str, threading.Thread] = {}
+_cancel_flags: dict[str, threading.Event] = {}
 
 
 def run_analysis(job_id: str, channel_url: str, threshold: float, use_stemming: bool, exclude_series: bool, metadata_csv: str = "", audio_fallback: bool = True, whisper_model: str = "small"):
+    cancel_event = threading.Event()
+    _cancel_flags[job_id] = cancel_event
     t = threading.Thread(
         target=_worker,
-        args=(job_id, channel_url, threshold, use_stemming, exclude_series, metadata_csv, audio_fallback, whisper_model),
+        args=(job_id, channel_url, threshold, use_stemming, exclude_series, metadata_csv, audio_fallback, whisper_model, cancel_event),
         daemon=True,
     )
     _active_jobs[job_id] = t
     t.start()
 
 
-def _worker(job_id: str, channel_url: str, threshold: float, use_stemming: bool, exclude_series: bool, metadata_csv: str, audio_fallback: bool = True, whisper_model: str = "small"):
+def cancel_analysis(job_id: str) -> bool:
+    flag = _cancel_flags.get(job_id)
+    if flag:
+        flag.set()
+        return True
+    return False
+
+
+def _worker(job_id: str, channel_url: str, threshold: float, use_stemming: bool, exclude_series: bool, metadata_csv: str, audio_fallback: bool = True, whisper_model: str = "small", cancel_event: threading.Event | None = None):
     db = SessionLocal()
     short_id = job_id[:8]
+
+    def _check_cancel():
+        if cancel_event and cancel_event.is_set():
+            raise _CancelledError()
+
     try:
         logger.info("▶ [%s] START  channel=%s  threshold=%.2f  stemming=%s  exclude_series=%s",
                      short_id, channel_url, threshold, use_stemming, exclude_series)
@@ -35,6 +56,7 @@ def _worker(job_id: str, channel_url: str, threshold: float, use_stemming: bool,
         _last_log_pct = [0]
 
         def on_download_progress(current: int, total: int, video_id: str):
+            _check_cancel()
             pct = 5 + round((current / total) * 20)
             _set_progress(db, job_id, pct, f"Download subtitle {current}/{total}")
             if pct - _last_log_pct[0] >= 5 or current == total:
@@ -68,6 +90,7 @@ def _worker(job_id: str, channel_url: str, threshold: float, use_stemming: bool,
                         short_id, len(failed_ids), whisper_model)
 
             def on_transcribe_progress(current: int, total: int, video_id: str):
+                _check_cancel()
                 pct = 26 + round((current / total) * 24)
                 _set_progress(db, job_id, pct, f"Transkripsi audio {current}/{total} — {video_id}")
 
@@ -143,12 +166,16 @@ def _worker(job_id: str, channel_url: str, threshold: float, use_stemming: bool,
         logger.info("✅ [%s] 100%%  DONE — %d videos, %d clusters, %d duplicates",
                      short_id, len(video_ids), len(clusters), total_dupes)
 
+    except _CancelledError:
+        logger.info("⏹ [%s] CANCELLED by user", short_id)
+        _set_status(db, job_id, "cancelled", "Dibatalkan oleh pengguna")
     except Exception as e:
         logger.exception("✖ [%s] ERROR — %s", short_id, e)
         _set_status(db, job_id, "failed", str(e)[:200])
     finally:
         db.close()
         _active_jobs.pop(job_id, None)
+        _cancel_flags.pop(job_id, None)
 
 
 def _set_progress(db, job_id: str, progress: int, message: str):

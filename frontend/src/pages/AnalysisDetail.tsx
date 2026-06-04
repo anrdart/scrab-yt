@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Card } from "../components/Card";
 import { Badge } from "../components/Badge";
-import { apiUrl, getClusters, getTranscripts, uploadMetadata } from "../lib/api";
+import { apiUrl, cancelAnalysis, getClusters, getTranscripts, uploadMetadata } from "../lib/api";
 import { useAnalysisProgress } from "../hooks/useAnalysisProgress";
 import type { ClusterDetail, TranscriptPreview } from "../lib/api";
 
@@ -11,6 +11,7 @@ function StatusBadge({ status }: { status: string }) {
     completed: { label: "Done", variant: "success" },
     running: { label: "Running", variant: "warning" },
     failed: { label: "Failed", variant: "danger" },
+    cancelled: { label: "Cancelled", variant: "default" },
     pending: { label: "Queued", variant: "default" },
   };
   const cfg = map[status] ?? { label: status, variant: "default" as const };
@@ -95,6 +96,7 @@ export function AnalysisDetail() {
   const [clusters, setClusters] = useState<ClusterDetail[]>([]);
   const [transcripts, setTranscripts] = useState<TranscriptPreview[]>([]);
   const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [cancelling, setCancelling] = useState(false);
   const [tab, setTab] = useState<"clusters" | "transcripts">("clusters");
 
   const loadResults = useCallback(async () => {
@@ -122,6 +124,19 @@ export function AnalysisDetail() {
       await loadResults();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Upload failed");
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!confirm("Batalkan analisis yang sedang berjalan?")) return;
+    setCancelling(true);
+    try {
+      await cancelAnalysis(analysisId);
+      await refresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Cancel failed");
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -179,7 +194,15 @@ export function AnalysisDetail() {
         )}
       </div>
 
-      {isRunning && <ProgressRing progress={analysis.progress} message={analysis.progress_message} />}
+      {isRunning && (
+        <div className="space-y-3">
+          <ProgressRing progress={analysis.progress} message={analysis.progress_message} />
+          <button onClick={handleCancel} disabled={cancelling} className="flex items-center gap-1.5 rounded-md px-3 py-2 text-xs font-black text-[var(--danger)] border border-[var(--danger)] hover:bg-[var(--danger-light)] transition-colors disabled:opacity-50">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><line x1="9" x2="15" y1="9" y2="15" /><line x1="15" x2="9" y1="9" y2="15" /></svg>
+            {cancelling ? "Membatalkan..." : "Cancel Analysis"}
+          </button>
+        </div>
+      )}
 
       {isFailed && (
         <Card className="p-5 border-[#f1b9bd] animate-fade-up">

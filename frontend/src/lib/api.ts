@@ -79,5 +79,8 @@ export const uploadMetadata = (id: string, file: File) => {
   return api<{ message: string }>(`/analyses/${id}/metadata`, { method: "POST", body: fd });
 };
 
+export const cancelAnalysis = (id: string) =>
+  api<{ message: string }>(`/analyses/${id}/cancel`, { method: "POST" });
+
 export const deleteAnalysis = (id: string) =>
   api<{ message: string }>(`/analyses/${id}`, { method: "DELETE" });
