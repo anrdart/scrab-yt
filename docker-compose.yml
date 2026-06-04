@@ -1,24 +1,9 @@
 services:
-  caddy:
-    image: caddy:2-alpine
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
-      - caddy-config:/config
-    depends_on:
-      backend:
-        condition: service_healthy
-    restart: unless-stopped
-
   backend:
     build: .
     image: ytdupe-backend:local
-    expose:
-      - "8001"
+    ports:
+      - "8001:8001"
     environment:
       PORT: "8001"
       YTDUPE_DATA_DIR: /app/data
@@ -36,5 +21,3 @@ services:
 
 volumes:
   ytdupe-data:
-  caddy-data:
-  caddy-config:
