@@ -169,12 +169,16 @@ def upload_metadata(analysis_id: str, file: UploadFile = File(...), db: Session 
 
 @router.post("/analyses/{analysis_id}/cancel")
 def cancel_analysis_endpoint(analysis_id: str, db: Session = Depends(get_db)):
+    from backend.database import update_analysis as db_update
+    from datetime import datetime
+
     analysis = db.query(Analysis).filter(Analysis.id == analysis_id).first()
     if not analysis:
         raise HTTPException(status_code=404, detail="Analisis tidak ditemukan")
     if analysis.status != "running":
         raise HTTPException(status_code=409, detail="Analisis tidak sedang berjalan")
-    cancel_analysis(analysis_id)
+    if not cancel_analysis(analysis_id):
+        db_update(db, analysis_id, status="cancelled", progress_message="Dibatalkan oleh pengguna", finished_at=datetime.utcnow())
     return {"message": "Analisis sedang dibatalkan"}
 
 

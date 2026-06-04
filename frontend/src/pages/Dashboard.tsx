@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, Skeleton } from "../components/Card";
 import { Badge } from "../components/Badge";
-import { listAnalyses, deleteAnalysis } from "../lib/api";
+import { listAnalyses, deleteAnalysis, cancelAnalysis } from "../lib/api";
 import type { AnalysisSummary } from "../lib/api";
 
 function StatusBadge({ status }: { status: string }) {
@@ -10,6 +10,7 @@ function StatusBadge({ status }: { status: string }) {
     completed: { v: "success", l: "Done", dot: false },
     running: { v: "muted", l: "Running", dot: true },
     failed: { v: "danger", l: "Failed", dot: false },
+    cancelled: { v: "muted", l: "Cancelled", dot: false },
     pending: { v: "muted", l: "Pending", dot: false },
   };
   const c = map[status] ?? { v: "muted" as const, l: status, dot: false };
@@ -66,8 +67,22 @@ export function Dashboard() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Hapus analisis ini?")) return;
-    await deleteAnalysis(id);
-    setData((p) => p.filter((a) => a.id !== id));
+    try {
+      await deleteAnalysis(id);
+      setData((p) => p.filter((a) => a.id !== id));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Gagal menghapus");
+    }
+  };
+
+  const handleCancel = async (id: string) => {
+    if (!confirm("Batalkan analisis ini?")) return;
+    try {
+      await cancelAnalysis(id);
+      setData((p) => p.map((a) => a.id === id ? { ...a, status: "cancelled" } : a));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Gagal membatalkan");
+    }
   };
 
   const totalV = data.reduce((s, a) => s + a.total_videos, 0);
@@ -151,7 +166,11 @@ export function Dashboard() {
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-2 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
                         <Link to={`/analyses/${a.id}`} className="rounded-md px-2 py-1 text-xs font-black text-[var(--primary)] hover:bg-[var(--primary-light)]">View</Link>
-                        <button onClick={() => handleDelete(a.id)} className="cursor-pointer rounded-md border-none bg-transparent px-2 py-1 text-xs font-black text-[var(--danger)] opacity-70 transition-opacity hover:bg-[var(--danger-light)] hover:opacity-100">Delete</button>
+                        {a.status === "running" ? (
+                          <button onClick={() => handleCancel(a.id)} className="cursor-pointer rounded-md border-none bg-transparent px-2 py-1 text-xs font-black text-[var(--danger)] opacity-70 transition-opacity hover:bg-[var(--danger-light)] hover:opacity-100">Cancel</button>
+                        ) : (
+                          <button onClick={() => handleDelete(a.id)} className="cursor-pointer rounded-md border-none bg-transparent px-2 py-1 text-xs font-black text-[var(--danger)] opacity-70 transition-opacity hover:bg-[var(--danger-light)] hover:opacity-100">Delete</button>
+                        )}
                       </div>
                     </td>
                   </tr>

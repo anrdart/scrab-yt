@@ -184,7 +184,7 @@ def _set_progress(db, job_id: str, progress: int, message: str):
 
 def _set_status(db, job_id: str, status: str, message: str):
     update_analysis(db, job_id, status=status, progress_message=message)
-    if status == "failed":
+    if status in ("failed", "cancelled"):
         update_analysis(db, job_id, finished_at=datetime.utcnow())
 
 
