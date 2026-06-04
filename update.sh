@@ -20,13 +20,14 @@ fi
 
 # --- Rebuild and restart ---
 info "Rebuilding images..."
-docker compose build --no-cache
+docker compose build
 
 info "Restarting services..."
+docker compose down
 docker compose up -d --remove-orphans
 
 info "Waiting for backend health check..."
-timeout=60
+timeout=120
 elapsed=0
 until docker compose exec -T backend python -c "import httpx; httpx.get('http://localhost:8001/api/health').raise_for_status()" 2>/dev/null; do
     sleep 2
