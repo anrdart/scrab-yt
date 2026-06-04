@@ -37,8 +37,8 @@ def download_subtitles(
         logger.error("Gagal mengambil daftar video: %s", e)
         return {"success": [], "failed": [("CHANNEL", str(e))]}
 
-    entries = playlist_info.get("entries", []) or []
-    video_entries = [e for e in entries if e and e.get("id") and e.get("_type") in ("video", "url")]
+    entries = list(playlist_info.get("entries", []) or [])
+    video_entries = [e for e in entries if e and e.get("id")]
 
     logger.info("Ditemukan %d video. Memulai download subtitle...", len(video_entries))
 
