@@ -1,17 +1,40 @@
 services:
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
   backend:
     build: .
     image: ytdupe-backend:local
-    ports:
-      - "8001:8001"
+    expose:
+      - "8001"
     environment:
       PORT: "8001"
       YTDUPE_DATA_DIR: /app/data
       YTDUPE_DB: /app/data/ytdupe.db
-      YTDUPE_CORS_ORIGINS: http://localhost:3001
+      YTDUPE_CORS_ORIGINS: "https://scrab.ekalliptus.com"
     volumes:
       - ytdupe-data:/app/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8001/api/health').raise_for_status()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 
 volumes:
   ytdupe-data:
+  caddy-data:
+  caddy-config:
