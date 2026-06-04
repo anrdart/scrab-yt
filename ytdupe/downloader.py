@@ -1,8 +1,32 @@
 import logging
 import os
+import re
 import sys
 
 logger = logging.getLogger("ytdupe")
+
+
+def _resolve_uploads_url(channel_url: str) -> str:
+    """Convert channel URL to uploads playlist URL for complete video listing."""
+    import yt_dlp
+
+    opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "extract_flat": True,
+        "playlist_items": "1",
+        "logger": logging.getLogger("ytdupe.dlp"),
+    }
+
+    with yt_dlp.YoutubeDL(opts) as ydl:
+        info = ydl.extract_info(channel_url, download=False)
+        channel_id = info.get("channel_id") or ""
+
+    if channel_id.startswith("UC"):
+        uploads_id = "UU" + channel_id[2:]
+        return f"https://www.youtube.com/playlist?list={uploads_id}"
+
+    return channel_url
 
 
 def download_subtitles(
@@ -22,18 +46,24 @@ def download_subtitles(
     success_ids: list[str] = []
     failed: list[tuple[str, str]] = []
 
+    logger.info("Mengambil daftar video dari channel: %s", channel_url)
+    try:
+        resolved_url = _resolve_uploads_url(channel_url)
+        logger.info("Resolved URL: %s", resolved_url)
+    except Exception as e:
+        logger.warning("Gagal resolve uploads URL, fallback ke URL asli: %s", e)
+        resolved_url = channel_url
+
     playlist_opts = {
         "quiet": True,
         "no_warnings": True,
         "extract_flat": True,
-        "playlistend": -1,
         "logger": logging.getLogger("ytdupe.dlp"),
     }
 
-    logger.info("Mengambil daftar video dari channel: %s", channel_url)
     try:
         with yt_dlp.YoutubeDL(playlist_opts) as ydl:
-            playlist_info = ydl.extract_info(channel_url, download=False)
+            playlist_info = ydl.extract_info(resolved_url, download=False)
     except Exception as e:
         logger.error("Gagal mengambil daftar video: %s", e)
         return {"success": [], "failed": [("CHANNEL", str(e))]}
