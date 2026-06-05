@@ -2,9 +2,11 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "../components/Card";
 import { createAnalysis } from "../lib/api";
+import { useI18n } from "../lib/i18n";
 
 export function NewAnalysis() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [url, setUrl] = useState("");
   const [mode, setMode] = useState<"duplicate" | "repost">("duplicate");
   const [threshold, setThreshold] = useState(75);
@@ -20,66 +22,61 @@ export function NewAnalysis() {
       const r = await createAnalysis({ channel_url: url.trim(), threshold: threshold / 100, use_stemming: stemming, exclude_series: excludeSeries, mode });
       navigate(`/analyses/${r.id}`);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Gagal memulai analisis");
+      alert(err instanceof Error ? err.message : t("new.submitFailed"));
     } finally {
       setSubmitting(false);
     }
   };
 
-  const pctLabel = threshold <= 55 ? "Loose" : threshold <= 70 ? "Normal" : threshold <= 85 ? "Strict" : "Very Strict";
+  const pctLabel = threshold <= 55 ? t("new.thresholdLoose") : threshold <= 70 ? t("new.thresholdNormal") : threshold <= 85 ? t("new.thresholdStrict") : t("new.thresholdVeryStrict");
   const pctColor = threshold <= 55 ? "text-[var(--warning)]" : threshold <= 70 ? "text-[var(--text)]" : threshold <= 85 ? "text-[var(--success)]" : "text-[var(--danger)]";
 
   return (
     <div className="page-frame max-w-2xl space-y-6">
       <div className="animate-fade-up">
-        <p className="page-kicker">analysis setup</p>
-        <h1 className="section-title mt-2 text-[var(--text)]">New Scan</h1>
-        <p className="mt-2 text-sm text-[var(--text-secondary)]">Masukkan URL channel YouTube untuk deteksi duplikat konten</p>
+        <p className="page-kicker">{t("new.kicker")}</p>
+        <h1 className="section-title mt-2 text-[var(--text)]">{t("new.title")}</h1>
+        <p className="mt-2 text-sm text-[var(--text-secondary)]">{t("new.subtitle")}</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4 animate-fade-up stagger-1">
         <Card className="p-5">
-          <label className="mb-2 block text-sm font-black text-[var(--text)]">Channel URL</label>
+          <label className="mb-2 block text-sm font-black text-[var(--text)]">{t("new.channelUrl")}</label>
           <input
             type="url"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://www.youtube.com/@NamaChannel/videos"
+            placeholder={t("new.channelPlaceholder")}
             required
             className="input-control h-12 w-full rounded-md px-4 text-sm placeholder:text-[var(--text-soft)]"
           />
-          <p className="mt-2 break-all text-xs text-[var(--text-secondary)]">
-            Example: https://www.youtube.com/@Gerakanwakafsumur/videos
-          </p>
         </Card>
 
         <Card className="p-5 animate-fade-up stagger-2">
-          <label className="mb-3 block text-sm font-black text-[var(--text)]">Detection Mode</label>
+          <label className="mb-3 block text-sm font-black text-[var(--text)]">{t("new.mode")}</label>
           <div className="flex gap-1 rounded-md border border-[var(--border-strong)] bg-[var(--surface-muted)] p-1">
             <button type="button" onClick={() => setMode("duplicate")}
               className={`flex-1 rounded px-4 py-2 text-xs font-black transition-all ${
                 mode === "duplicate" ? "bg-[var(--surface)] text-[var(--text)] shadow-sm" : "text-[var(--text-secondary)]"
               }`}>
-              Duplicate Content
+              {t("new.modeDuplicate")}
             </button>
             <button type="button" onClick={() => setMode("repost")}
               className={`flex-1 rounded px-4 py-2 text-xs font-black transition-all ${
                 mode === "repost" ? "bg-[var(--surface)] text-[var(--text)] shadow-sm" : "text-[var(--text-secondary)]"
               }`}>
-              Repost Detection
+              {t("new.modeRepost")}
             </button>
           </div>
           <p className="mt-2 text-xs text-[var(--text-secondary)]">
-            {mode === "duplicate"
-              ? "Cari video dengan transkrip serupa (konten sama)"
-              : "Cari video dengan konten sama tapi judul berbeda (repost)"}
+            {mode === "duplicate" ? t("new.modeDuplicateDesc") : t("new.modeRepostDesc")}
           </p>
         </Card>
 
         <Card className="p-5 space-y-5 animate-fade-up stagger-2">
           <div>
             <div className="mb-4 flex items-baseline justify-between gap-4">
-              <label className="text-sm font-black text-[var(--text)]">Similarity Threshold</label>
+              <label className="text-sm font-black text-[var(--text)]">{t("new.threshold")}</label>
               <div className="flex items-baseline gap-2">
                 <span className={`text-xl font-black tabular-nums ${pctColor}`}>{(threshold / 100).toFixed(2)}</span>
                 <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
@@ -100,15 +97,15 @@ export function NewAnalysis() {
               className="range-control h-2 w-full cursor-pointer appearance-none rounded-full bg-[var(--surface-muted)]"
             />
             <div className="mt-2 flex justify-between gap-4">
-              <span className="text-[11px] text-[var(--text-secondary)]">0.40 — more candidates</span>
-              <span className="text-[11px] text-[var(--text-secondary)]">0.95 — near-identical</span>
+              <span className="text-[11px] text-[var(--text-secondary)]">0.40 — {t("new.thresholdMore")}</span>
+              <span className="text-[11px] text-[var(--text-secondary)]">0.95 — {t("new.thresholdIdentical")}</span>
             </div>
           </div>
 
           <hr className="border-[var(--border-strong)]" />
 
-          <Toggle checked={excludeSeries} onChange={setExcludeSeries} label="Exclude video series" description="Skip episode series (Day-1, Day-2, etc)" />
-          <Toggle checked={stemming} onChange={setStemming} label="Indonesian stemming" description="More accurate, slower processing" />
+          <Toggle checked={excludeSeries} onChange={setExcludeSeries} label={t("new.excludeSeries")} description={t("new.excludeSeriesDesc")} />
+          <Toggle checked={stemming} onChange={setStemming} label={t("new.stemming")} description={t("new.stemmingDesc")} />
         </Card>
 
         <button
@@ -119,9 +116,9 @@ export function NewAnalysis() {
           {submitting ? (
             <>
               <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-              Starting...
+              {t("new.submitting")}
             </>
-          ) : "Start Scan"}
+          ) : t("new.submit")}
         </button>
       </form>
     </div>
