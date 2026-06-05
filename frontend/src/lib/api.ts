@@ -3,6 +3,7 @@ export interface AnalysisSummary {
   channel_url: string;
   channel_name: string;
   status: string;
+  mode: string;
   total_videos: number;
   total_clusters: number;
   total_duplicates: number;
@@ -59,6 +60,7 @@ export const createAnalysis = (data: {
   threshold?: number;
   use_stemming?: boolean;
   exclude_series?: boolean;
+  mode?: string;
 }) => api<AnalysisDetail>("/analyses", {
   method: "POST",
   headers: { "Content-Type": "application/json" },

@@ -58,12 +58,21 @@ def _is_series_pair(title_a: str, title_b: str) -> bool:
     return num_a_match.group(1) != num_b_match.group(1)
 
 
+def _title_similarity(title_a: str, title_b: str) -> float:
+    words_a = set(title_a.lower().split())
+    words_b = set(title_b.lower().split())
+    if not words_a or not words_b:
+        return 0.0
+    return len(words_a & words_b) / len(words_a | words_b)
+
+
 def find_duplicates(
     similarity_matrix: np.ndarray,
     video_ids: list[str],
     threshold: float = 0.75,
     exclude_series: bool = True,
     metadata: pd.DataFrame | None = None,
+    mode: str = "duplicate",
 ) -> list[dict]:
     pairs = []
     n = len(video_ids)
@@ -75,11 +84,16 @@ def find_duplicates(
                 vid_a = video_ids[i]
                 vid_b = video_ids[j]
 
-                if exclude_series and metadata is not None and not metadata.empty:
+                if metadata is not None and not metadata.empty:
                     title_a = _get_title(metadata, vid_a)
                     title_b = _get_title(metadata, vid_b)
-                    if title_a and title_b and _is_series_pair(title_a, title_b):
+
+                    if exclude_series and title_a and title_b and _is_series_pair(title_a, title_b):
                         continue
+
+                    if mode == "repost" and title_a and title_b:
+                        if _title_similarity(title_a, title_b) >= 0.5:
+                            continue
 
                 pairs.append(
                     {
@@ -89,7 +103,7 @@ def find_duplicates(
                     }
                 )
 
-    logger.info("Ditemukan %d pasangan duplikat (threshold=%.2f)", len(pairs), threshold)
+    logger.info("Ditemukan %d pasangan duplikat (threshold=%.2f, mode=%s)", len(pairs), threshold, mode)
     return pairs
 
 

@@ -10,6 +10,7 @@ from sqlalchemy import (
     String,
     Text,
     create_engine,
+    text,
 )
 from sqlalchemy.orm import declarative_base, sessionmaker
 
@@ -41,6 +42,7 @@ class Analysis(Base):
     clusters_json = Column(Text, default="[]")
     transcripts_json = Column(Text, default="{}")
     video_ids_json = Column(Text, default="[]")
+    mode = Column(String, default="duplicate")
     audio_fallback = Column(Integer, default=1)
     whisper_model = Column(String, default="small")
     audio_transcribed_count = Column(Integer, default=0)
@@ -50,6 +52,12 @@ class Analysis(Base):
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE analyses ADD COLUMN mode TEXT DEFAULT 'duplicate'"))
+            conn.commit()
+        except Exception:
+            pass
 
 
 def get_db():

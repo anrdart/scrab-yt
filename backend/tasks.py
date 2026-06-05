@@ -18,12 +18,12 @@ _active_jobs: dict[str, threading.Thread] = {}
 _cancel_flags: dict[str, threading.Event] = {}
 
 
-def run_analysis(job_id: str, channel_url: str, threshold: float, use_stemming: bool, exclude_series: bool, metadata_csv: str = "", audio_fallback: bool = True, whisper_model: str = "small"):
+def run_analysis(job_id: str, channel_url: str, threshold: float, use_stemming: bool, exclude_series: bool, metadata_csv: str = "", audio_fallback: bool = True, whisper_model: str = "small", mode: str = "duplicate"):
     cancel_event = threading.Event()
     _cancel_flags[job_id] = cancel_event
     t = threading.Thread(
         target=_worker,
-        args=(job_id, channel_url, threshold, use_stemming, exclude_series, metadata_csv, audio_fallback, whisper_model, cancel_event),
+        args=(job_id, channel_url, threshold, use_stemming, exclude_series, metadata_csv, audio_fallback, whisper_model, cancel_event, mode),
         daemon=True,
     )
     _active_jobs[job_id] = t
@@ -38,7 +38,7 @@ def cancel_analysis(job_id: str) -> bool:
     return False
 
 
-def _worker(job_id: str, channel_url: str, threshold: float, use_stemming: bool, exclude_series: bool, metadata_csv: str, audio_fallback: bool = True, whisper_model: str = "small", cancel_event: threading.Event | None = None):
+def _worker(job_id: str, channel_url: str, threshold: float, use_stemming: bool, exclude_series: bool, metadata_csv: str, audio_fallback: bool = True, whisper_model: str = "small", cancel_event: threading.Event | None = None, mode: str = "duplicate"):
     db = SessionLocal()
     short_id = job_id[:8]
 
@@ -142,6 +142,7 @@ def _worker(job_id: str, channel_url: str, threshold: float, use_stemming: bool,
             output_dir=get_output_dir(job_id),
             progress=lambda pct, msg: _set_progress(db, job_id, pct, msg),
             log_prefix=short_id,
+            mode=mode,
         )
         clusters = result["clusters"]
         video_ids = result["video_ids"]
@@ -212,6 +213,7 @@ def recompute_completed_analysis(db, analysis_id: str, metadata_csv: str):
         exclude_series=bool(analysis.exclude_series),
         metadata_csv=metadata_csv,
         output_dir=get_output_dir(analysis_id),
+        mode=analysis.mode or "duplicate",
     )
     clusters = result["clusters"]
     total_dupes = sum(c["cluster_size"] - 1 for c in clusters)
@@ -248,6 +250,7 @@ def _compute_duplicate_result(
     output_dir: str,
     progress=None,
     log_prefix: str | None = None,
+    mode: str = "duplicate",
 ):
     from ytdupe.reporter import generate_report
     from ytdupe.similarity import (
@@ -282,6 +285,7 @@ def _compute_duplicate_result(
         threshold=threshold,
         exclude_series=exclude_series,
         metadata=metadata_df,
+        mode=mode,
     )
     if log_prefix:
         logger.info("✓ [%s]  82%%  %d duplicate pairs found (threshold=%.2f)", log_prefix, len(pairs), threshold)

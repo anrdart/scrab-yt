@@ -42,6 +42,7 @@ def create_analysis(payload: AnalysisCreate, db: Session = Depends(get_db)):
         exclude_series=int(payload.exclude_series),
         audio_fallback=int(payload.audio_fallback),
         whisper_model=payload.whisper_model,
+        mode=payload.mode,
         status="running",
         progress=0,
         progress_message="Memulai...",
@@ -59,6 +60,7 @@ def create_analysis(payload: AnalysisCreate, db: Session = Depends(get_db)):
         exclude_series=payload.exclude_series,
         audio_fallback=payload.audio_fallback,
         whisper_model=payload.whisper_model,
+        mode=payload.mode,
     )
 
     return _to_response(analysis)
@@ -208,6 +210,7 @@ def _to_response(a: Analysis) -> AnalysisResponse:
         progress=a.progress or 0,
         progress_message=a.progress_message or "",
         threshold=a.threshold or 0.75,
+        mode=a.mode or "duplicate",
         total_videos=a.total_videos or 0,
         total_clusters=a.total_clusters or 0,
         total_duplicates=a.total_duplicates or 0,
@@ -222,6 +225,7 @@ def _to_summary(a: Analysis) -> AnalysisSummary:
         channel_url=a.channel_url,
         channel_name=a.channel_name or "",
         status=a.status,
+        mode=a.mode or "duplicate",
         total_videos=a.total_videos or 0,
         total_clusters=a.total_clusters or 0,
         total_duplicates=a.total_duplicates or 0,

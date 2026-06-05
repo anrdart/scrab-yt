@@ -6,6 +6,7 @@ import { createAnalysis } from "../lib/api";
 export function NewAnalysis() {
   const navigate = useNavigate();
   const [url, setUrl] = useState("");
+  const [mode, setMode] = useState<"duplicate" | "repost">("duplicate");
   const [threshold, setThreshold] = useState(75);
   const [stemming, setStemming] = useState(false);
   const [excludeSeries, setExcludeSeries] = useState(true);
@@ -16,7 +17,7 @@ export function NewAnalysis() {
     if (!url.trim()) return;
     setSubmitting(true);
     try {
-      const r = await createAnalysis({ channel_url: url.trim(), threshold: threshold / 100, use_stemming: stemming, exclude_series: excludeSeries });
+      const r = await createAnalysis({ channel_url: url.trim(), threshold: threshold / 100, use_stemming: stemming, exclude_series: excludeSeries, mode });
       navigate(`/analyses/${r.id}`);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Gagal memulai analisis");
@@ -49,6 +50,29 @@ export function NewAnalysis() {
           />
           <p className="mt-2 break-all text-xs text-[var(--text-secondary)]">
             Example: https://www.youtube.com/@Gerakanwakafsumur/videos
+          </p>
+        </Card>
+
+        <Card className="p-5 animate-fade-up stagger-2">
+          <label className="mb-3 block text-sm font-black text-[var(--text)]">Detection Mode</label>
+          <div className="flex gap-1 rounded-md border border-[var(--border-strong)] bg-[var(--surface-muted)] p-1">
+            <button type="button" onClick={() => setMode("duplicate")}
+              className={`flex-1 rounded px-4 py-2 text-xs font-black transition-all ${
+                mode === "duplicate" ? "bg-[var(--surface)] text-[var(--text)] shadow-sm" : "text-[var(--text-secondary)]"
+              }`}>
+              Duplicate Content
+            </button>
+            <button type="button" onClick={() => setMode("repost")}
+              className={`flex-1 rounded px-4 py-2 text-xs font-black transition-all ${
+                mode === "repost" ? "bg-[var(--surface)] text-[var(--text)] shadow-sm" : "text-[var(--text-secondary)]"
+              }`}>
+              Repost Detection
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-[var(--text-secondary)]">
+            {mode === "duplicate"
+              ? "Cari video dengan transkrip serupa (konten sama)"
+              : "Cari video dengan konten sama tapi judul berbeda (repost)"}
           </p>
         </Card>
 

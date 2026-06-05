@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { Fragment, useEffect, useState, useCallback } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Card } from "../components/Card";
 import { Badge } from "../components/Badge";
@@ -97,6 +97,7 @@ export function AnalysisDetail() {
   const [transcripts, setTranscripts] = useState<TranscriptPreview[]>([]);
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [expandedVideo, setExpandedVideo] = useState<string | null>(null);
   const [tab, setTab] = useState<"clusters" | "transcripts">("clusters");
 
   const loadResults = useCallback(async () => {
@@ -274,33 +275,53 @@ export function AnalysisDetail() {
                       <thead>
                         <tr className="border-b border-[var(--border-strong)] text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)]">
                           <th className="px-5 py-2.5 text-left">Status</th>
-                          <th className="px-4 py-2.5 text-left">ID</th>
-                          <th className="px-4 py-2.5 text-left">Title</th>
+                          <th className="px-4 py-2.5 text-left">Video</th>
                           <th className="px-4 py-2.5 text-right">Views</th>
                           <th className="px-4 py-2.5 text-right">Similarity</th>
                         </tr>
                       </thead>
                       <tbody>
                         {cluster.videos.map((v) => (
-                          <tr key={v.video_id} className={`border-b border-[var(--border)] transition-colors ${
-                            v.status === "PRIMARY" ? "" : "bg-[var(--danger-light)]"
-                          }`}>
-                            <td className="px-5 py-2.5">
-                              <Badge variant={v.status === "PRIMARY" ? "success" : "danger"}>
-                                {v.status === "PRIMARY" ? "Primary" : "Duplicate"}
-                              </Badge>
-                            </td>
-                            <td className="px-4 py-2.5 font-mono text-[11px]">
-                              <a href={`https://www.youtube.com/watch?v=${v.video_id}`} target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] underline decoration-[var(--primary)]/30 hover:decoration-[var(--primary)]">{v.video_id}</a>
-                            </td>
-                            <td className="max-w-[260px] truncate px-4 py-2.5 font-bold">{v.judul !== "N/A" ? v.judul : <span className="italic text-[var(--text-secondary)]">-</span>}</td>
-                            <td className="px-4 py-2.5 text-right tabular-nums">
-                              {v.penayangan > 0 ? v.penayangan.toLocaleString("id-ID") : <span className="text-[var(--text-secondary)]">-</span>}
-                            </td>
-                            <td className="px-4 py-2.5">
-                              <SimBar value={v.similarity_to_primary} />
-                            </td>
-                          </tr>
+                          <Fragment key={v.video_id}>
+                            <tr className={`border-b border-[var(--border)] transition-colors ${
+                              v.status === "PRIMARY" ? "" : "bg-[var(--danger-light)]"
+                            }`}>
+                              <td className="px-5 py-2.5 align-top">
+                                <Badge variant={v.status === "PRIMARY" ? "success" : "danger"}>
+                                  {v.status === "PRIMARY" ? "Primary" : "Duplicate"}
+                                </Badge>
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <div className="flex items-center gap-3">
+                                  <button type="button" onClick={() => setExpandedVideo(expandedVideo === v.video_id ? null : v.video_id)} className="relative shrink-0 group cursor-pointer rounded overflow-hidden">
+                                    <img src={`https://img.youtube.com/vi/${v.video_id}/mqdefault.jpg`} alt={v.judul} className="w-24 h-[54px] object-cover" loading="lazy" />
+                                    <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+                                    </span>
+                                  </button>
+                                  <div className="min-w-0">
+                                    <p className="truncate max-w-[240px] text-sm font-bold text-[var(--text)]">
+                                      {v.judul !== "N/A" ? v.judul : <span className="italic text-[var(--text-secondary)]">&mdash;</span>}
+                                    </p>
+                                    <a href={`https://www.youtube.com/watch?v=${v.video_id}`} target="_blank" rel="noopener noreferrer" className="mt-0.5 block font-mono text-[10px] text-[var(--primary)] hover:underline">{v.video_id}</a>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-2.5 text-right tabular-nums align-top">
+                                {v.penayangan > 0 ? v.penayangan.toLocaleString("id-ID") : <span className="text-[var(--text-secondary)]">-</span>}
+                              </td>
+                              <td className="px-4 py-2.5 align-top">
+                                <SimBar value={v.similarity_to_primary} />
+                              </td>
+                            </tr>
+                            {expandedVideo === v.video_id && (
+                              <tr>
+                                <td colSpan={4} className="px-5 py-3 bg-[var(--surface-muted)]">
+                                  <iframe width="480" height="270" src={`https://www.youtube.com/embed/${v.video_id}`} title={v.judul} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen className="rounded-md" />
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
                         ))}
                       </tbody>
                     </table>

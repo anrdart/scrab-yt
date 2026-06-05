@@ -13,6 +13,7 @@ class AnalysisCreate(BaseModel):
     exclude_series: bool = True
     audio_fallback: bool = True
     whisper_model: str = "small"
+    mode: str = "duplicate"
 
 
 class AnalysisResponse(BaseModel):
@@ -23,6 +24,7 @@ class AnalysisResponse(BaseModel):
     progress: int = 0
     progress_message: str = ""
     threshold: float = 0.75
+    mode: str = "duplicate"
     total_videos: int = 0
     total_clusters: int = 0
     total_duplicates: int = 0
@@ -70,6 +72,7 @@ class AnalysisSummary(BaseModel):
     channel_url: str
     channel_name: str = ""
     status: str
+    mode: str = "duplicate"
     total_videos: int = 0
     total_clusters: int = 0
     total_duplicates: int = 0
