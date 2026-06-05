@@ -1,14 +1,12 @@
 import { Link, useLocation } from "react-router-dom";
-import { useI18n } from "../lib/i18n";
+
+const NAV = [
+  { to: "/", label: "Dasbor", icon: "D" },
+  { to: "/analyses/new", label: "Scan Baru", icon: "+" },
+];
 
 export function Sidebar({ open, onToggle }: { open: boolean; onToggle: () => void }) {
   const location = useLocation();
-  const { lang, setLang, t } = useI18n();
-
-  const NAV = [
-    { to: "/", label: t("nav.dashboard"), icon: "D" },
-    { to: "/analyses/new", label: t("nav.newScan"), icon: "+" },
-  ];
 
   return (
     <aside
@@ -48,23 +46,15 @@ export function Sidebar({ open, onToggle }: { open: boolean; onToggle: () => voi
         })}
       </nav>
 
-      <div className="border-t border-white/10 flex flex-col">
-        <button
-          onClick={() => setLang(lang === "en" ? "id" : "en")}
-          className="h-11 flex items-center justify-center gap-2 text-white/50 hover:text-white transition-colors cursor-pointer text-xs font-bold"
-        >
-          {open ? (lang === "en" ? "🇮🇩 Indonesia" : "🇬🇧 English") : (lang === "en" ? "ID" : "EN")}
-        </button>
-        <button
-          onClick={onToggle}
-          className="h-11 border-t border-white/10 flex items-center justify-center text-white/50 hover:text-white transition-colors cursor-pointer"
-          aria-label="Toggle sidebar"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M15 18l-6-6-6 6" />
-          </svg>
-        </button>
-      </div>
+      <button
+        onClick={onToggle}
+        className="h-11 border-t border-white/10 flex items-center justify-center text-white/50 hover:text-white transition-colors cursor-pointer"
+        aria-label="Toggle sidebar"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M15 18l-6-6-6 6" />
+        </svg>
+      </button>
     </aside>
   );
 }
