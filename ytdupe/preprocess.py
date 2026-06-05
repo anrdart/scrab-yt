@@ -142,9 +142,9 @@ def _get_stemmer():
         from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 
         factory = StemmerFactory()
-        _stemmer_instance = factory.createStemmer()
+        _stemmer_instance = factory.create_stemmer()
         return _stemmer_instance
-    except ImportError:
+    except Exception:
         logger.warning("Sastrawi tidak tersedia. Stemming dilewati.")
         return None
 
