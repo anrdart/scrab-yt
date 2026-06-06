@@ -47,6 +47,9 @@ def _worker(job_id: str, channel_url: str, threshold: float, use_stemming: bool,
             raise _CancelledError()
 
     try:
+        if mode == "thumbnail":
+            _run_thumbnail_pipeline(db, job_id, channel_url, threshold, metadata_csv, short_id, _check_cancel)
+            return
         logger.info("▶ [%s] START  channel=%s  threshold=%.2f  stemming=%s  exclude_series=%s",
                      short_id, channel_url, threshold, use_stemming, exclude_series)
 
@@ -177,6 +180,82 @@ def _worker(job_id: str, channel_url: str, threshold: float, use_stemming: bool,
         db.close()
         _active_jobs.pop(job_id, None)
         _cancel_flags.pop(job_id, None)
+
+
+def _run_thumbnail_pipeline(db, job_id, channel_url, threshold, metadata_csv, short_id, check_cancel):
+    from ytdupe.downloader import list_video_ids
+    from ytdupe.thumbnail import download_thumbnails, compute_thumbnail_hashes, compute_thumbnail_similarity_matrix
+    from ytdupe.similarity import cluster_duplicates
+    from ytdupe.utils import load_metadata
+    from ytdupe.reporter import generate_report
+
+    _set_progress(db, job_id, 2, "Mengambil daftar video...")
+    video_ids = list_video_ids(channel_url)
+    logger.info("📋 [%s]   5%%  found %d videos", short_id, len(video_ids))
+    _set_progress(db, job_id, 5, f"Ditemukan {len(video_ids)} video")
+
+    if not video_ids:
+        _set_status(db, job_id, "failed", "Tidak ada video ditemukan")
+        return
+
+    thumb_dir = os.path.join(os.path.dirname(get_subtitle_dir(job_id)), "thumbnails")
+
+    def on_thumb_progress(current, total, video_id):
+        check_cancel()
+        pct = 5 + round((current / total) * 35)
+        _set_progress(db, job_id, pct, f"Download thumbnail {current}/{total}")
+
+    thumb_paths = download_thumbnails(video_ids, thumb_dir, on_progress=on_thumb_progress)
+    video_ids = list(thumb_paths.keys())
+    logger.info("🖼 [%s]  40%%  downloaded %d thumbnails", short_id, len(thumb_paths))
+
+    if len(video_ids) < 2:
+        _set_status(db, job_id, "failed", "Kurang dari 2 thumbnail berhasil didownload")
+        return
+
+    _set_progress(db, job_id, 42, "Menghitung hash thumbnail...")
+    check_cancel()
+    hashes = compute_thumbnail_hashes(thumb_paths)
+
+    _set_progress(db, job_id, 55, "Menghitung kemiripan thumbnail...")
+    check_cancel()
+    sim_matrix, pairs = compute_thumbnail_similarity_matrix(hashes, video_ids, threshold)
+    logger.info("📊 [%s]  60%%  %d pairs above threshold %.2f", short_id, len(pairs), threshold)
+
+    _set_progress(db, job_id, 65, "Mengelompokkan cluster...")
+    metadata_df = load_metadata(metadata_csv)
+    clusters = cluster_duplicates(pairs, video_ids, metadata=metadata_df)
+    total_dupes = sum(c["cluster_size"] - 1 for c in clusters)
+
+    _set_progress(db, job_id, 75, "Membuat laporan Excel...")
+    output_dir = get_output_dir(job_id)
+    os.makedirs(output_dir, exist_ok=True)
+    excel_path = os.path.join(output_dir, "laporan_duplikat_konten.xlsx")
+
+    generate_report(
+        output_path=excel_path,
+        transcripts={},
+        clusters=clusters,
+        metadata=metadata_df,
+        similarity_matrix=sim_matrix,
+        video_ids=video_ids,
+        config={"channel_url": channel_url, "similarity_threshold": threshold, "mode": "thumbnail"},
+    )
+
+    update_analysis(db, job_id,
+        status="completed",
+        progress=100,
+        progress_message="Analisis selesai!",
+        total_videos=len(video_ids),
+        total_clusters=len(clusters),
+        total_duplicates=total_dupes,
+        clusters_json=clusters,
+        transcripts_json={},
+        video_ids_json=video_ids,
+        excel_path=excel_path,
+        finished_at=datetime.utcnow(),
+    )
+    logger.info("✅ [%s] 100%%  DONE — %d videos, %d clusters, %d duplicates", short_id, len(video_ids), len(clusters), total_dupes)
 
 
 def _set_progress(db, job_id: str, progress: int, message: str):

@@ -29,22 +29,8 @@ def _resolve_uploads_url(channel_url: str) -> str:
     return channel_url
 
 
-def download_subtitles(
-    channel_url: str,
-    lang_priority: list[str] | None = None,
-    output_dir: str = "data/subtitles",
-    sleep_interval: int = 2,
-    on_progress: "callable[[int, int, str], None] | None" = None,
-) -> dict:
+def list_video_ids(channel_url: str) -> list[str]:
     import yt_dlp
-
-    if lang_priority is None:
-        lang_priority = ["id", "en"]
-
-    os.makedirs(output_dir, exist_ok=True)
-
-    success_ids: list[str] = []
-    failed: list[tuple[str, str]] = []
 
     logger.info("Mengambil daftar video dari channel: %s", channel_url)
     try:
@@ -61,21 +47,40 @@ def download_subtitles(
         "logger": logging.getLogger("ytdupe.dlp"),
     }
 
+    with yt_dlp.YoutubeDL(playlist_opts) as ydl:
+        playlist_info = ydl.extract_info(resolved_url, download=False)
+
+    entries = list(playlist_info.get("entries", []) or [])
+    video_ids = [e["id"] for e in entries if e and e.get("id")]
+    logger.info("Ditemukan %d video", len(video_ids))
+    return video_ids
+
+
+def download_subtitles(
+    channel_url: str,
+    lang_priority: list[str] | None = None,
+    output_dir: str = "data/subtitles",
+    sleep_interval: int = 2,
+    on_progress: "callable[[int, int, str], None] | None" = None,
+) -> dict:
+    if lang_priority is None:
+        lang_priority = ["id", "en"]
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    success_ids: list[str] = []
+    failed: list[tuple[str, str]] = []
+
     try:
-        with yt_dlp.YoutubeDL(playlist_opts) as ydl:
-            playlist_info = ydl.extract_info(resolved_url, download=False)
+        video_entries = list_video_ids(channel_url)
     except Exception as e:
         logger.error("Gagal mengambil daftar video: %s", e)
         return {"success": [], "failed": [("CHANNEL", str(e))]}
 
-    entries = list(playlist_info.get("entries", []) or [])
-    video_entries = [e for e in entries if e and e.get("id")]
-
-    logger.info("Ditemukan %d video. Memulai download subtitle...", len(video_entries))
+    logger.info("Memulai download subtitle untuk %d video...", len(video_entries))
 
     total = len(video_entries)
-    for idx, entry in enumerate(video_entries, 1):
-        video_id = entry["id"]
+    for idx, video_id in enumerate(video_entries, 1):
         downloaded = False
 
         if on_progress:

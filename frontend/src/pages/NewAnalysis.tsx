@@ -6,7 +6,7 @@ import { createAnalysis } from "../lib/api";
 export function NewAnalysis() {
   const navigate = useNavigate();
   const [url, setUrl] = useState("");
-  const [mode, setMode] = useState<"duplicate" | "repost">("duplicate");
+  const [mode, setMode] = useState<"duplicate" | "repost" | "thumbnail">("duplicate");
   const [threshold, setThreshold] = useState(75);
   const [stemming, setStemming] = useState(false);
   const [excludeSeries, setExcludeSeries] = useState(true);
@@ -53,23 +53,31 @@ export function NewAnalysis() {
         <Card className="p-5 animate-fade-up stagger-2">
           <label className="mb-3 block text-sm font-black text-[var(--text)]">Mode Deteksi</label>
           <div className="flex gap-1 rounded-md border border-[var(--border-strong)] bg-[var(--surface-muted)] p-1">
-            <button type="button" onClick={() => setMode("duplicate")}
+            <button type="button" onClick={() => { setMode("duplicate"); setThreshold(75); }}
               className={`flex-1 rounded px-4 py-2 text-xs font-black transition-all ${
                 mode === "duplicate" ? "bg-[var(--surface)] text-[var(--text)] shadow-sm" : "text-[var(--text-secondary)]"
               }`}>
               Konten Duplikat
             </button>
-            <button type="button" onClick={() => setMode("repost")}
+            <button type="button" onClick={() => { setMode("repost"); setThreshold(75); }}
               className={`flex-1 rounded px-4 py-2 text-xs font-black transition-all ${
                 mode === "repost" ? "bg-[var(--surface)] text-[var(--text)] shadow-sm" : "text-[var(--text-secondary)]"
               }`}>
               Deteksi Repost
             </button>
+            <button type="button" onClick={() => { setMode("thumbnail"); setThreshold(85); }}
+              className={`flex-1 rounded px-4 py-2 text-xs font-black transition-all ${
+                mode === "thumbnail" ? "bg-[var(--surface)] text-[var(--text)] shadow-sm" : "text-[var(--text-secondary)]"
+              }`}>
+              Deteksi Thumbnail
+            </button>
           </div>
           <p className="mt-2 text-xs text-[var(--text-secondary)]">
             {mode === "duplicate"
               ? "Cari video dengan transkrip serupa (konten sama)"
-              : "Cari video dengan konten sama tapi judul berbeda (repost)"}
+              : mode === "repost"
+              ? "Cari video dengan konten sama tapi judul berbeda (repost)"
+              : "Cari video dengan thumbnail serupa (tanpa transkrip)"}
           </p>
         </Card>
 
@@ -102,10 +110,13 @@ export function NewAnalysis() {
             </div>
           </div>
 
-          <hr className="border-[var(--border-strong)]" />
-
-          <Toggle checked={excludeSeries} onChange={setExcludeSeries} label="Kecualikan seri video" description="Lewati seri episode (Hari ke-1, Hari ke-2, dll)" />
-          <Toggle checked={stemming} onChange={setStemming} label="Stemming Indonesia" description="Lebih akurat, proses lebih lambat" />
+          {mode !== "thumbnail" && (
+            <>
+              <hr className="border-[var(--border-strong)]" />
+              <Toggle checked={excludeSeries} onChange={setExcludeSeries} label="Kecualikan seri video" description="Lewati seri episode (Hari ke-1, Hari ke-2, dll)" />
+              <Toggle checked={stemming} onChange={setStemming} label="Stemming Indonesia" description="Lebih akurat, proses lebih lambat" />
+            </>
+          )}
         </Card>
 
         <button

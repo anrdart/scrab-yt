@@ -18,18 +18,28 @@ function StatusBadge({ status }: { status: string }) {
   return <Badge variant={cfg.variant}>{cfg.label}</Badge>;
 }
 
-function ProgressRing({ progress, message }: { progress: number; message: string }) {
+const STAGES_DEFAULT = [
+  { min: 0, max: 25, label: "Download Subtitle" },
+  { min: 25, max: 50, label: "Transkripsi Audio" },
+  { min: 50, max: 60, label: "Parse & Preprocessing" },
+  { min: 60, max: 90, label: "Analisis Kemiripan" },
+  { min: 90, max: 100, label: "Buat Laporan" },
+];
+
+const STAGES_THUMBNAIL = [
+  { min: 0, max: 5, label: "Daftar Video" },
+  { min: 5, max: 40, label: "Download Thumbnail" },
+  { min: 40, max: 55, label: "Hitung Hash" },
+  { min: 55, max: 70, label: "Analisis Kemiripan" },
+  { min: 70, max: 100, label: "Buat Laporan" },
+];
+
+function ProgressRing({ progress, message, mode }: { progress: number; message: string; mode?: string }) {
   const r = 54;
   const c = 2 * Math.PI * r;
   const offset = c - (progress / 100) * c;
 
-  const stages = [
-    { min: 0, max: 25, label: "Download Subtitle" },
-    { min: 25, max: 50, label: "Transkripsi Audio" },
-    { min: 50, max: 60, label: "Parse & Preprocessing" },
-    { min: 60, max: 90, label: "Analisis Kemiripan" },
-    { min: 90, max: 100, label: "Buat Laporan" },
-  ];
+  const stages = mode === "thumbnail" ? STAGES_THUMBNAIL : STAGES_DEFAULT;
 
   return (
     <Card className="p-6 animate-fade-up">
@@ -198,7 +208,7 @@ export function AnalysisDetail() {
 
       {isRunning && (
         <div className="space-y-3">
-          <ProgressRing progress={analysis.progress} message={analysis.progress_message} />
+          <ProgressRing progress={analysis.progress} message={analysis.progress_message} mode={analysis.mode} />
           <button onClick={handleCancel} disabled={cancelling} className="flex items-center gap-1.5 rounded-md px-3 py-2 text-xs font-black text-[var(--danger)] border border-[var(--danger)] hover:bg-[var(--danger-light)] transition-colors disabled:opacity-50">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" /><line x1="9" x2="15" y1="9" y2="15" /><line x1="15" x2="9" y1="9" y2="15" /></svg>
             {cancelling ? "Membatalkan..." : "Batalkan Analisis"}
@@ -244,9 +254,11 @@ export function AnalysisDetail() {
             <button onClick={() => setTab("clusters")} className={`rounded px-4 py-1.5 text-xs font-black transition-all ${tab === "clusters" ? "bg-[var(--surface)] text-[var(--text)] shadow-sm" : "text-[var(--text-secondary)] hover:text-[var(--text)]"}`}>
               Cluster ({clusters.length})
             </button>
-            <button onClick={() => setTab("transcripts")} className={`rounded px-4 py-1.5 text-xs font-black transition-all ${tab === "transcripts" ? "bg-[var(--surface)] text-[var(--text)] shadow-sm" : "text-[var(--text-secondary)] hover:text-[var(--text)]"}`}>
-              Transkrip ({transcripts.length})
-            </button>
+            {analysis.mode !== "thumbnail" && (
+              <button onClick={() => setTab("transcripts")} className={`rounded px-4 py-1.5 text-xs font-black transition-all ${tab === "transcripts" ? "bg-[var(--surface)] text-[var(--text)] shadow-sm" : "text-[var(--text-secondary)] hover:text-[var(--text)]"}`}>
+                Transkrip ({transcripts.length})
+              </button>
+            )}
           </div>
 
           {tab === "clusters" && (
