@@ -189,14 +189,25 @@ def _run_thumbnail_pipeline(db, job_id, channel_url, threshold, metadata_csv, sh
     from ytdupe.utils import load_metadata
     from ytdupe.reporter import generate_report
 
-    _set_progress(db, job_id, 2, "Mengambil daftar video...")
-    video_ids = list_video_ids(channel_url)
-    logger.info("📋 [%s]   5%%  found %d videos", short_id, len(video_ids))
-    _set_progress(db, job_id, 5, f"Ditemukan {len(video_ids)} video")
+    import pandas as pd
 
-    if not video_ids:
+    _set_progress(db, job_id, 2, "Mengambil daftar video...")
+    video_entries = list_video_ids(channel_url, with_titles=True)
+    logger.info("📋 [%s]   5%%  found %d videos", short_id, len(video_entries))
+    _set_progress(db, job_id, 5, f"Ditemukan {len(video_entries)} video")
+
+    if not video_entries:
         _set_status(db, job_id, "failed", "Tidak ada video ditemukan")
         return
+
+    video_ids = [e["id"] for e in video_entries]
+    title_map = {e["id"]: e["title"] for e in video_entries}
+
+    output_dir = get_output_dir(job_id)
+    os.makedirs(output_dir, exist_ok=True)
+    auto_csv = os.path.join(output_dir, "metadata_auto.csv")
+    pd.DataFrame([{"video_id": vid, "judul": title_map.get(vid, "")} for vid in video_ids]).to_csv(auto_csv, index=False)
+    update_analysis(db, job_id, metadata_csv=auto_csv)
 
     thumb_dir = os.path.join(os.path.dirname(get_subtitle_dir(job_id)), "thumbnails")
 
@@ -223,7 +234,7 @@ def _run_thumbnail_pipeline(db, job_id, channel_url, threshold, metadata_csv, sh
     logger.info("📊 [%s]  60%%  %d pairs above threshold %.2f", short_id, len(pairs), threshold)
 
     _set_progress(db, job_id, 65, "Mengelompokkan cluster...")
-    metadata_df = load_metadata(metadata_csv)
+    metadata_df = load_metadata(metadata_csv or auto_csv)
     clusters = cluster_duplicates(pairs, video_ids, metadata=metadata_df)
     total_dupes = sum(c["cluster_size"] - 1 for c in clusters)
 

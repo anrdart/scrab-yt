@@ -29,7 +29,7 @@ def _resolve_uploads_url(channel_url: str) -> str:
     return channel_url
 
 
-def list_video_ids(channel_url: str) -> list[str]:
+def list_video_ids(channel_url: str, with_titles: bool = False) -> list[str] | list[dict]:
     import yt_dlp
 
     logger.info("Mengambil daftar video dari channel: %s", channel_url)
@@ -51,9 +51,12 @@ def list_video_ids(channel_url: str) -> list[str]:
         playlist_info = ydl.extract_info(resolved_url, download=False)
 
     entries = list(playlist_info.get("entries", []) or [])
-    video_ids = [e["id"] for e in entries if e and e.get("id")]
-    logger.info("Ditemukan %d video", len(video_ids))
-    return video_ids
+    valid = [e for e in entries if e and e.get("id")]
+    logger.info("Ditemukan %d video", len(valid))
+
+    if with_titles:
+        return [{"id": e["id"], "title": e.get("title", "")} for e in valid]
+    return [e["id"] for e in valid]
 
 
 def download_subtitles(
